@@ -33,23 +33,11 @@ fn parse_game_line(game_line: &str) -> Game {
 }
 
 fn get_min_cubes_required(draws: &[Cubes]) -> Cubes {
-    let mut min_cubes = Cubes::default();
-
-    draws.iter().for_each(|draw| {
-        if min_cubes.red < draw.red {
-            min_cubes.red = draw.red
-        }
-
-        if min_cubes.green < draw.green {
-            min_cubes.green = draw.green
-        }
-
-        if min_cubes.blue < draw.blue {
-            min_cubes.blue = draw.blue
-        }
-    });
-
-    min_cubes
+    Cubes {
+        red: draws.iter().map(|d| d.red).max().unwrap(),
+        green: draws.iter().map(|d| d.green).max().unwrap(),
+        blue: draws.iter().map(|d| d.blue).max().unwrap(),
+    }
 }
 
 fn is_draw_possible(draw: &Cubes, reference: &Cubes) -> bool {
@@ -60,9 +48,8 @@ fn solve_1(input: &str) -> u32 {
     input
         .lines()
         .map(parse_game_line)
-        .map(|game| (get_min_cubes_required(&game.draws), game.id))
-        .filter(|(cubes, _)| is_draw_possible(&cubes, &CUBES_IN_BAG))
-        .map(|(_, id)| id)
+        .filter(|game| is_draw_possible(&get_min_cubes_required(&game.draws), &CUBES_IN_BAG))
+        .map(|game| game.id)
         .sum()
 }
 
