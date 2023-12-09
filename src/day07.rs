@@ -8,8 +8,8 @@ struct Hand {
 
 impl PartialOrd for Hand {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let self_hand_type = get_hand_type(&self.cards);
-        let other_hand_type = get_hand_type(&other.cards);
+        let self_hand_type = get_hand_type_with_jokers(&self.cards);
+        let other_hand_type = get_hand_type_with_jokers(&other.cards);
 
         match self_hand_type.cmp(&other_hand_type) {
             std::cmp::Ordering::Equal => Some(self.cards.cmp(&other.cards)),
@@ -18,7 +18,7 @@ impl PartialOrd for Hand {
     }
 }
 
-fn convert_to_num(character: char) -> u32 {
+fn convert_to_num_for_part1(character: char) -> u32 {
     match character {
         'A' => 14,
         'K' => 13,
@@ -29,21 +29,58 @@ fn convert_to_num(character: char) -> u32 {
     }
 }
 
-fn parse_hands(input: &str) -> Vec<Hand> {
+fn convert_to_num_for_part2(character: char) -> u32 {
+    match character {
+        'A' => 14,
+        'K' => 13,
+        'Q' => 12,
+        'J' => 1,
+        'T' => 10,
+        _ => character.to_digit(10).unwrap(),
+    }
+}
+
+fn parse_hands(input: &str, converter: fn(char) -> u32) -> Vec<Hand> {
     input
         .lines()
         .map(|hand| hand.split_once(" ").unwrap())
         .map(|(cards_str, bid_str)| Hand {
-            cards: cards_str.chars().map(|a| convert_to_num(a)).collect(),
+            cards: cards_str.chars().map(|a| converter(a)).collect(),
             bid: bid_str.parse().unwrap(),
         })
         .collect()
 }
 
-fn get_ranked_bids(hands: &Vec<Hand>) -> Vec<Hand> {
+fn get_ranked_hands(hands: &Vec<Hand>) -> Vec<Hand> {
     let mut hand_clone = hands.clone();
     hand_clone.sort_by(|a, b| a.partial_cmp(b).unwrap());
     hand_clone
+}
+
+fn get_hand_type_with_jokers(cards: &Vec<u32>) -> u32 {
+    let a: u32 = 1;
+    let joker_count = cards.iter().filter(|&card| card == &a).count();
+
+    if joker_count == 0 {
+        return get_hand_type(cards);
+    }
+
+    match get_hand_type(cards) {
+        7 => return 7,
+        6 => return 7, // at least one joker
+        5 => return 7, // at least two jokers
+        4 => return 6,
+        3 => {
+            if joker_count == 1 {
+                return 5;
+            } else {
+                return 6;
+            }
+        }
+        2 => return 4,
+        1 => return 2,
+        _ => panic!("You shouldn't be here"),
+    }
 }
 
 fn get_hand_type(cards: &Vec<u32>) -> u32 {
@@ -82,7 +119,15 @@ fn get_hand_type(cards: &Vec<u32>) -> u32 {
 }
 
 fn solve_1(input: &str) -> usize {
-    get_ranked_bids(&parse_hands(input))
+    get_ranked_hands(&parse_hands(input, convert_to_num_for_part1))
+        .iter()
+        .enumerate()
+        .map(|(rank, hand)| (rank + 1) * hand.bid)
+        .sum()
+}
+
+fn solve_2(input: &str) -> usize {
+    get_ranked_hands(&parse_hands(input, convert_to_num_for_part2))
         .iter()
         .enumerate()
         .map(|(rank, hand)| (rank + 1) * hand.bid)
@@ -90,7 +135,8 @@ fn solve_1(input: &str) -> usize {
 }
 
 pub fn solve(input: &str) {
-    println!("{}", solve_1(input))
+    //println!("{}", solve_1(input));
+    println!("{}", solve_2(input));
 }
 
 #[cfg(test)]
@@ -130,7 +176,10 @@ QQQJA 483";
 
     #[test]
     fn parse_hands() {
-        assert_eq!(super::parse_hands(&EXAMPLE_INPUT), get_example_hands());
+        assert_eq!(
+            super::parse_hands(&EXAMPLE_INPUT, convert_to_num_for_part1),
+            get_example_hands()
+        );
     }
 
     #[test]
@@ -142,5 +191,40 @@ QQQJA 483";
                 .collect::<Vec<_>>(),
             vec![2, 4, 3, 3, 4]
         );
+    }
+
+    #[test]
+    fn get_hand_type_after_jokers() {
+        assert_eq!(
+            get_example_hands()
+                .iter()
+                .map(|hand| {
+                    let mut hand_cards = hand.cards.clone();
+                    hand_cards.iter_mut().for_each(|num| {
+                        if *num == 11 {
+                            *num = 1;
+                        }
+                    });
+                    super::get_hand_type_with_jokers(&hand_cards)
+                })
+                .collect::<Vec<_>>(),
+            vec![2, 6, 3, 6, 6]
+        );
+    }
+
+    #[test]
+    fn test_hand_type_with_joker() {
+        assert_eq!(get_hand_type_with_jokers(&vec![1, 1, 1, 1, 1]), 7);
+        assert_eq!(get_hand_type_with_jokers(&vec![1, 1, 1, 1, 10]), 7);
+        assert_eq!(get_hand_type_with_jokers(&vec![1, 1, 1, 10, 10]), 7);
+        assert_eq!(get_hand_type_with_jokers(&vec![1, 1, 10, 10, 10]), 7);
+        assert_eq!(get_hand_type_with_jokers(&vec![1, 10, 10, 10, 10]), 7);
+        assert_eq!(get_hand_type_with_jokers(&vec![1, 2, 3, 4, 5]), 2);
+        assert_eq!(get_hand_type_with_jokers(&vec![13, 12, 10, 10, 10]), 4);
+    }
+
+    #[test]
+    fn solve_2() {
+        assert_eq!(super::solve_2(&EXAMPLE_INPUT), 5905);
     }
 }
