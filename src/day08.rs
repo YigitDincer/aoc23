@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+extern crate num_integer;
 
 type Network = HashMap<String, (String, String)>;
 
@@ -41,11 +42,56 @@ fn solve_1(network: Network, directions: Vec<char>) -> usize {
     ctr
 }
 
+fn get_all_nodes_ending_with_a(network: &Network) -> Vec<&str> {
+    network
+        .keys()
+        .filter(|&node_name| node_name.ends_with('A'))
+        .map(String::as_str)
+        .collect()
+}
+
+fn lcm(a: usize, b: usize) -> usize {
+    a / num_integer::gcd(a, b) * b
+}
+
+fn solve_2(network: &Network, directions: Vec<char>) -> usize {
+    let mut factors = Vec::new();
+
+    for node in get_all_nodes_ending_with_a(&network) {
+        let mut current_node_name = node;
+        let mut ctr = 0;
+
+        while !current_node_name.ends_with('Z') {
+            let (l, r) = network.get(current_node_name).unwrap();
+            current_node_name = if directions[ctr % directions.len()] == 'R' {
+                r
+            } else {
+                l
+            };
+            ctr += 1;
+        }
+
+        factors.push(ctr);
+    }
+
+    let mut least_common_multiplier: usize = 1;
+    for factor in factors {
+        least_common_multiplier = lcm(least_common_multiplier, factor);
+    }
+
+    least_common_multiplier
+}
+
 pub fn solve(input: &str) {
     const DIRECTIONS : &str = "LRLRRRLRRLRRRLRRRLLLLLRRRLRLRRLRLRLRRLRRLRRRLRLRLRRLLRLRRLRRLRRLRRRLLRRRLRRRLRRLRLLLRRLRRRLRLRRLRRRLRRLRLLLRRRLRRLRRLRRRLRRRLRRRLRLRLRLRRRLRRRLLLRRLLRRRLRLRLRRRLRRRLRRLRRRLRLRLLRRRLRLRRLRLRLRRLLLRRRLRRRLRRLRRLRLRRLLRRLRRRLRRRLLRRRLRRLRLLRRLRLRRLLRRRLLLLRRLRRRLRLRRLLRLLRRRLLRRLLRRRLRRRLRRLLRLRLLRRLLRLLLRRRR";
     println!(
         "{}",
         solve_1(parse_into_network(&input), parse_directions(DIRECTIONS))
+    );
+
+    println!(
+        "{}",
+        solve_2(&parse_into_network(&input), parse_directions(DIRECTIONS))
     );
 }
 
@@ -82,5 +128,10 @@ ZZZ = (ZZZ, ZZZ)";
             get_example_network_as_nodes()
         );
         assert_eq!(super::parse_directions(&EXAMPLE_DIRECTIONS), vec!['R', 'L']);
+    }
+
+    #[test]
+    fn least_common_multiplier() {
+        assert_eq!(lcm(8, 12), 24);
     }
 }
