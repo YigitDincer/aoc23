@@ -26,14 +26,6 @@ fn parse_input(input: &str) -> EngineSchema {
         .collect()
 }
 
-fn get_all_non_numbers(input_as_hashmap: &EngineSchema) -> EngineSchema {
-    input_as_hashmap
-        .iter()
-        .filter(|(_, ch)| !ch.is_digit(10))
-        .map(|(&key, &ch)| (key, ch))
-        .collect()
-}
-
 fn get_all_numbers(input_as_hashmap: &EngineSchema) -> EngineSchema {
     input_as_hashmap
         .iter()
@@ -42,10 +34,18 @@ fn get_all_numbers(input_as_hashmap: &EngineSchema) -> EngineSchema {
         .collect()
 }
 
-fn get_all_neighbor_pos(symbols: &EngineSchema) -> HashSet<(i32, i32)> {
+fn get_all_non_numbers(input_as_hashmap: &EngineSchema) -> EngineSchema {
+    input_as_hashmap
+        .iter()
+        .filter(|(_, ch)| !ch.is_digit(10))
+        .map(|(&key, &ch)| (key, ch))
+        .collect()
+}
+
+fn get_all_neighbor_pos(center: HashSet<(i32, i32)>) -> HashSet<(i32, i32)> {
     let mut neighbors = HashSet::new();
 
-    symbols.iter().for_each(|((row, col), _)| {
+    center.iter().for_each(|(row, col)| {
         neighbors.insert((*row - 1, *col - 1));
         neighbors.insert((*row - 1, *col));
         neighbors.insert((*row - 1, *col + 1));
@@ -83,10 +83,10 @@ fn get_numbers(input: &str) -> HashSet<Number> {
 }
 
 fn solve_1(input: &str) -> usize {
-    let engine_shema = parse_input(input);
-    let all_non_numbers = get_all_non_numbers(&engine_shema);
-    let neighbors_of_non_numbers = get_all_neighbor_pos(&all_non_numbers);
-    //let all_numbers = get_all_numbers(&engine_shema);
+    let engine_scheme = parse_input(input);
+    let all_non_numbers = get_all_non_numbers(&engine_scheme);
+    let neighbors_of_non_numbers =
+        get_all_neighbor_pos(all_non_numbers.iter().map(|(key, _)| *key).collect());
     let numbers = get_numbers(&input);
 
     numbers
@@ -101,8 +101,41 @@ fn solve_1(input: &str) -> usize {
         .sum()
 }
 
+fn solve_2(input: &str) -> usize {
+    let engine_scheme = parse_input(input);
+    let numbers = get_numbers(&input);
+
+    let stars_only: HashMap<_, _> = engine_scheme.iter().filter(|&(_, ch)| *ch == '*').collect();
+    let mut engine_scheme_numbers_only = get_all_numbers(&engine_scheme);
+
+    let mut acc = 0;
+    for (pos, ch) in stars_only {
+        engine_scheme_numbers_only.insert(*pos, *ch);
+
+        let neighbors_of_non_numbers = get_all_neighbor_pos(HashSet::from([*pos]));
+
+        let neighbor_numbers = numbers.iter().filter(|number| {
+            !HashSet::from_iter(number.pos.iter().cloned())
+                .intersection(&neighbors_of_non_numbers)
+                .collect::<Vec<_>>()
+                .is_empty()
+        });
+
+        if neighbor_numbers.clone().count() != 2 {
+            continue;
+        }
+
+        acc += neighbor_numbers
+            .map(|number| number.raw)
+            .fold(1, |acc, x| acc * x)
+    }
+
+    acc
+}
+
 pub fn solve(input: &str) {
     println!("{}", solve_1(input));
+    println!("{}", solve_2(input));
 }
 
 #[cfg(test)]
@@ -112,6 +145,21 @@ mod tests {
     const EXAMPLE_INPUT: &str = "467
 #..
 35.";
+
+    const EXAMPLE_INPUT_2: &str = "467
+*..
+35.";
+
+    const OFFICIAL_EXAMPLE_INPUT: &str = "467..114..
+...*......
+..35..633.
+......#...
+617*......
+.....+.58.
+..592.....
+......755.
+...$.*....
+.664.598..";
 
     fn get_example_hashmap() -> EngineSchema {
         HashMap::from([
@@ -130,19 +178,18 @@ mod tests {
     }
 
     #[test]
-    fn get_all_non_numbers() {
-        let mut example_hashmap = get_example_hashmap();
-        example_hashmap.retain(|_, &mut v| v != '#');
-
-        assert_eq!(
-            super::get_all_numbers(&get_example_hashmap()),
-            example_hashmap
-        );
+    fn solve() {
+        assert_eq!(super::solve_1(&EXAMPLE_INPUT), 502);
     }
 
     #[test]
-    fn solve() {
-        assert_eq!(super::solve_1(&EXAMPLE_INPUT), 502);
+    fn solve_2() {
+        assert_eq!(super::solve_2(&EXAMPLE_INPUT_2), 16345);
+    }
+
+    #[test]
+    fn solve_2_official_example() {
+        assert_eq!(super::solve_2(&OFFICIAL_EXAMPLE_INPUT), 467835);
     }
 
     #[test]
